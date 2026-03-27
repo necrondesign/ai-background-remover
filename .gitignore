@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+*.spec.bak
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+*.dmg
+
+# Windows
+Thumbs.db
+desktop.ini
+*.exe
+*.zip
+
+# Модель (скачивается при первом запуске)
+models--ZhengPeng7--BiRefNet/
+.cache/
+
+# PyInstaller
+*.manifest
+*.log
+logs/
+
+# Temporary
+*.tmp
+*.bak
+
+# Icon build artifacts
+textures/icon.iconset/

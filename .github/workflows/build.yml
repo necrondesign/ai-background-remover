@@ -1,0 +1,124 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Запускается при пуше тэга v2.0.0, v2.1.0 и т.д.
+
+jobs:
+  # ─── macOS Build (DMG) ──────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build .app via venv-bundle script
+        run: |
+          chmod +x scripts/build.sh
+          scripts/build.sh --dmg
+
+      - name: Ad-hoc sign the app bundle
+        run: |
+          APP="dist/AI Background Remover.app"
+          xattr -cr "$APP"
+          codesign --force --deep -s - "$APP"
+
+      - name: Create DMG
+        run: |
+          hdiutil create -volname "AI Background Remover" \
+            -srcfolder "dist/AI Background Remover.app" \
+            -ov -format UDZO \
+            "dist/AI-Background-Remover-macOS.dmg"
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Background-Remover-macOS
+          path: dist/AI-Background-Remover-macOS.dmg
+
+  # ─── Windows CPU Build ──────────────────────────────────────
+  build-windows-cpu:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies (CPU-only torch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+          pip install pyinstaller tkinterdnd2
+
+      - name: Build with PyInstaller
+        run: pyinstaller --noconfirm rmbg_remover.spec
+
+      - name: Create ZIP
+        run: Compress-Archive -Path "dist\AI Background Remover\*" -DestinationPath "dist\AI-Background-Remover-Windows-CPU.zip"
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Background-Remover-Windows-CPU
+          path: dist/AI-Background-Remover-Windows-CPU.zip
+
+  # ─── Windows GPU Build (CUDA) ──────────────────────────────
+  build-windows-gpu:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies (CUDA torch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+          pip install -r requirements.txt
+          pip install pyinstaller tkinterdnd2
+
+      - name: Build with PyInstaller
+        run: pyinstaller --noconfirm rmbg_remover.spec
+
+      - name: Compress with 7z (better ratio than zip)
+        shell: bash
+        run: |
+          cd dist
+          7z a "AI-Background-Remover-Windows-GPU.7z" "AI Background Remover/"
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Background-Remover-Windows-GPU
+          path: dist/AI-Background-Remover-Windows-GPU.7z
+
+  # ─── Release ───────────────────────────────────────────────
+  release:
+    needs: [build-macos, build-windows-cpu, build-windows-gpu]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            AI-Background-Remover-macOS/AI-Background-Remover-macOS.dmg
+            AI-Background-Remover-Windows-CPU/AI-Background-Remover-Windows-CPU.zip
+            AI-Background-Remover-Windows-GPU/AI-Background-Remover-Windows-GPU.7z
+          generate_release_notes: true

@@ -1,0 +1,27 @@
+# AI Background Remover - Dependencies
+# Python 3.10+
+
+# GUI (cross-platform)
+customtkinter>=5.2.0
+tkinterdnd2>=0.3.0  # optional: drag-and-drop support
+
+# Machine Learning
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.35.0
+
+# Image Processing
+Pillow>=10.0.0
+kornia>=0.7.0
+
+# BiRefNet extra dependencies
+timm
+scipy
+scikit-image
+einops
+
+# Numerical
+numpy>=1.24.0
+
+# Packaging (development only)
+pyinstaller>=6.0.0
