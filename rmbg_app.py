@@ -963,33 +963,33 @@ class AIBGApp:
             base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
 
             # tkinterdnd2 из pip/PyInstaller (содержит dylib для Tcl 8.6)
+            # ВАЖНО: добавляем только платформенную поддиректорию (osx-arm64, win-x64…),
+            # родительский pkgIndex.tcl некорректно выбирает платформу.
             tkdnd2_dirs: list[str] = []
+            import platform as _platform
+            if sys.platform == "darwin":
+                _plat_subdir = f"osx-{'arm64' if _platform.machine() == 'arm64' else 'x64'}"
+            elif sys.platform == "win32":
+                _plat_subdir = f"win-{'arm64' if _platform.machine() == 'ARM64' else 'x64'}"
+            else:
+                _plat_subdir = f"linux-{'arm64' if _platform.machine() == 'aarch64' else 'x64'}"
+
             try:
                 import tkinterdnd2
-                pkg_dir = os.path.join(
-                    os.path.dirname(os.path.abspath(tkinterdnd2.__file__)), "tkdnd",
+                plat_dir = os.path.join(
+                    os.path.dirname(os.path.abspath(tkinterdnd2.__file__)),
+                    "tkdnd", _plat_subdir,
                 )
-                if os.path.isdir(pkg_dir):
-                    tkdnd2_dirs.append(pkg_dir)
-                    # Платформенная поддиректория (osx-arm64, osx-x64, …)
-                    import platform
-                    if sys.platform == "darwin":
-                        arch = "arm64" if platform.machine() == "arm64" else "x64"
-                        plat = os.path.join(pkg_dir, f"osx-{arch}")
-                        if os.path.isdir(plat):
-                            tkdnd2_dirs.append(plat)
+                if os.path.isdir(plat_dir):
+                    tkdnd2_dirs.append(plat_dir)
             except ImportError:
                 pass
             if hasattr(sys, '_MEIPASS'):
-                meipass_tkdnd = os.path.join(sys._MEIPASS, "tkinterdnd2", "tkdnd")
-                if os.path.isdir(meipass_tkdnd):
-                    tkdnd2_dirs.append(meipass_tkdnd)
-                    if sys.platform == "darwin":
-                        import platform
-                        arch = "arm64" if platform.machine() == "arm64" else "x64"
-                        plat = os.path.join(meipass_tkdnd, f"osx-{arch}")
-                        if os.path.isdir(plat):
-                            tkdnd2_dirs.append(plat)
+                plat_dir = os.path.join(
+                    sys._MEIPASS, "tkinterdnd2", "tkdnd", _plat_subdir,
+                )
+                if os.path.isdir(plat_dir):
+                    tkdnd2_dirs.append(plat_dir)
 
             # Bundled libs/tkdnd (собран под Tcl 9)
             bundled = os.path.join(base_dir, "libs", "tkdnd")
