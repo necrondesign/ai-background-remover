@@ -956,29 +956,56 @@ class AIBGApp:
         """Подключает tkdnd для приёма файлов перетаскиванием."""
         try:
             tk = self.root.tk
+            tcl_major = int(tk.eval("info tclversion").split(".")[0])
 
-            # Пробуем bundled tkdnd (рядом со скриптом или в PyInstaller _MEIPASS)
+            # Собираем кандидатов в порядке приоритета для текущей версии Tcl
+            candidates: list[str] = []
             base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
-            bundled = os.path.join(base_dir, "libs", "tkdnd")
-            if os.path.isdir(bundled):
-                tk.eval(f"lappend auto_path {{{bundled}}}")
 
-            # Пробуем tkinterdnd2 из pip / PyInstaller как запасной вариант
+            # tkinterdnd2 из pip/PyInstaller (содержит dylib для Tcl 8.6)
+            tkdnd2_dirs: list[str] = []
             try:
                 import tkinterdnd2
                 pkg_dir = os.path.join(
                     os.path.dirname(os.path.abspath(tkinterdnd2.__file__)), "tkdnd",
                 )
                 if os.path.isdir(pkg_dir):
-                    tk.eval(f"lappend auto_path {{{pkg_dir}}}")
+                    tkdnd2_dirs.append(pkg_dir)
+                    # Платформенная поддиректория (osx-arm64, osx-x64, …)
+                    import platform
+                    if sys.platform == "darwin":
+                        arch = "arm64" if platform.machine() == "arm64" else "x64"
+                        plat = os.path.join(pkg_dir, f"osx-{arch}")
+                        if os.path.isdir(plat):
+                            tkdnd2_dirs.append(plat)
             except ImportError:
                 pass
-
-            # В PyInstaller tkinterdnd2 может лежать в _MEIPASS/tkinterdnd2/tkdnd
             if hasattr(sys, '_MEIPASS'):
                 meipass_tkdnd = os.path.join(sys._MEIPASS, "tkinterdnd2", "tkdnd")
                 if os.path.isdir(meipass_tkdnd):
-                    tk.eval(f"lappend auto_path {{{meipass_tkdnd}}}")
+                    tkdnd2_dirs.append(meipass_tkdnd)
+                    if sys.platform == "darwin":
+                        import platform
+                        arch = "arm64" if platform.machine() == "arm64" else "x64"
+                        plat = os.path.join(meipass_tkdnd, f"osx-{arch}")
+                        if os.path.isdir(plat):
+                            tkdnd2_dirs.append(plat)
+
+            # Bundled libs/tkdnd (собран под Tcl 9)
+            bundled = os.path.join(base_dir, "libs", "tkdnd")
+
+            if tcl_major >= 9:
+                # Tcl 9 — наш bundled (2.9.5), tkinterdnd2 как fallback
+                if os.path.isdir(bundled):
+                    candidates.append(bundled)
+                candidates.extend(tkdnd2_dirs)
+            else:
+                # Tcl 8 — только tkinterdnd2 (2.9.3, совместим с Tcl 8)
+                # Наш bundled 2.9.5 собран под Tcl 9, не добавляем
+                candidates.extend(tkdnd2_dirs)
+
+            for path in candidates:
+                tk.eval(f"lappend auto_path {{{path}}}")
 
             tk.eval("package require tkdnd")
 
