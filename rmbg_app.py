@@ -995,11 +995,13 @@ class AIBGApp:
 
     def _on_dnd_drop(self, data: str):
         """Обработчик: файл перетащили в окно."""
+        from urllib.parse import unquote, urlparse
+
         filepath = data.strip()
         if filepath.startswith("{") and filepath.endswith("}"):
             filepath = filepath[1:-1]  # Windows оборачивает пути в скобки
         if filepath.startswith("file://"):
-            filepath = filepath[7:]    # macOS добавляет file:// префикс
+            filepath = unquote(urlparse(filepath).path)  # декодируем %20, кириллицу и т.д.
         if os.path.isfile(filepath):
             self.root.after(10, lambda p=filepath: self._load_image(p))
 

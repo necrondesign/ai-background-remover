@@ -20,13 +20,18 @@ jobs:
       - name: Build .app via venv-bundle script
         run: |
           chmod +x scripts/build.sh
-          scripts/build.sh --dmg
+          scripts/build.sh
 
       - name: Ad-hoc sign the app bundle
         run: |
           APP="dist/AI Background Remover.app"
+          # Сначала подписываем все вложенные бинарники отдельно
+          find "$APP" -type f \( -name "*.dylib" -o -name "*.so" -o -name "python3*" \) \
+            -exec codesign --force --sign - {} \;
+          # Затем подписываем весь бандл
+          codesign --force --deep --sign - "$APP"
+          # Убираем карантин (актуально только на этапе сборки)
           xattr -cr "$APP"
-          codesign --force --deep -s - "$APP"
 
       - name: Create DMG
         run: |
@@ -122,3 +127,14 @@ jobs:
             AI-Background-Remover-Windows-CPU/AI-Background-Remover-Windows-CPU.zip
             AI-Background-Remover-Windows-GPU/AI-Background-Remover-Windows-GPU.7z
           generate_release_notes: true
+          body: |
+            ## macOS
+            After installing, if macOS shows "app is damaged" or blocks the launch:
+            1. Open **System Settings → Privacy & Security**
+            2. Scroll down — you'll see a message about the blocked app
+            3. Click **"Open Anyway"**
+
+            Or run in Terminal:
+            ```
+            xattr -cr "/Applications/AI Background Remover.app"
+            ```
