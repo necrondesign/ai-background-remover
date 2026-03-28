@@ -17,21 +17,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Build .app via venv-bundle script
+      - name: Install dependencies
         run: |
-          chmod +x scripts/build.sh
-          scripts/build.sh
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+          pip3 install pyinstaller tkinterdnd2
 
-      - name: Ad-hoc sign the app bundle
-        run: |
-          APP="dist/AI Background Remover.app"
-          # Сначала подписываем все вложенные бинарники отдельно
-          find "$APP" -type f \( -name "*.dylib" -o -name "*.so" -o -name "python3*" \) \
-            -exec codesign --force --sign - {} \;
-          # Затем подписываем весь бандл
-          codesign --force --deep --sign - "$APP"
-          # Убираем карантин (актуально только на этапе сборки)
-          xattr -cr "$APP"
+      - name: Build with PyInstaller
+        run: pyinstaller --noconfirm rmbg_remover.spec
 
       - name: Create DMG
         run: |
